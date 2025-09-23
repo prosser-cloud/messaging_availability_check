@@ -20,7 +20,7 @@ A solution for dynamically showing/hiding messaging chat buttons in Salesforce E
 
 This solution provides a REST API that executes a Salesforce Flow and uses the boolean result to control chat button visibility across all Experience Cloud pages via head markup.
 
-The included Flow (`Messaging_Button_Availability.xml`) is an example checks agent availability in a queue and returns 'false' (hides dutton) if no agents are logged in. You'll need to modify it with your specific business logic for determining when the chat button should be visible.
+The included Flow (`Messaging_Button_Availability.xml`) is an example that checks agent availability in a queue and returns 'false' (hides button) if no agents are logged in. You'll need to modify it with your specific business logic for determining when the chat button should be visible.
 
 ## Why This Solution
 
