@@ -5,6 +5,7 @@ A solution for dynamically showing/hiding messaging chat buttons in Salesforce E
 ## Table of Contents
 
 - [Overview](#overview)
+- [Architecture & Technologies](#architecture--technologies)
 - [Why This Solution](#why-this-solution)
 - [Features](#features)
 - [Prerequisites](#prerequisites)
@@ -21,6 +22,17 @@ A solution for dynamically showing/hiding messaging chat buttons in Salesforce E
 This solution provides a REST API that executes a Salesforce Flow and uses the boolean result to control chat button visibility across all Experience Cloud pages via head markup.
 
 The included Flow (`Messaging_Button_Availability.xml`) is an example that checks agent availability in a queue and returns 'false' (hides button) if no agents are logged in. You'll need to modify it with your specific business logic for determining when the chat button should be visible.
+
+## Architecture & Technologies
+
+This solution demonstrates the integration of several Salesforce technologies:
+
+- **[Apex REST Services](https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_rest.htm)** - Custom REST endpoint for Flow execution
+- **[Autolaunched Flows](https://help.salesforce.com/s/articleView?id=service.omnichannel_check_availability_for_routing.htm&type=5)** - Business logic execution engine
+- **[Embedded Messaging Event Listeners](https://developer.salesforce.com/docs/service/messaging-web/guide/event-listeners.html)** - JavaScript events from Messaging for Web
+- **Experience Cloud Head Markup** - Global JavaScript implementation
+- **Client-side Caching** - localStorage and memory-based result caching
+
 
 ## Why This Solution
 
