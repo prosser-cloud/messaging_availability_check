@@ -1,0 +1,150 @@
+<script>
+// Enhanced caching with localStorage and call deduplication
+let apiCache = {
+    result: null,
+    expiry: null,
+    duration: 2 * 60 * 1000, // 2 minutes
+    inProgress: false // Prevent duplicate calls
+};
+
+// Try to restore cache from localStorage
+function restoreCache() {
+    try {
+        const stored = localStorage.getItem('flowButtonCache');
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            if (parsed.expiry && Date.now() < parsed.expiry) {
+                apiCache = parsed;
+                console.log('[CHAT-BTN] 🔄 Restored cache from localStorage');
+                return true;
+            }
+        }
+    } catch (e) {
+        console.log('[CHAT-BTN] Failed to restore cache:', e);
+    }
+    return false;
+}
+
+function getCachedResult() {
+    if (apiCache.result !== null && 
+        apiCache.expiry && 
+        Date.now() < apiCache.expiry) {
+        console.log('[CHAT-BTN] 🗄️ Using cached API result:', apiCache.result);
+        return apiCache.result;
+    }
+    return null;
+}
+
+function setCachedResult(result) {
+    apiCache.result = result;
+    apiCache.expiry = Date.now() + apiCache.duration;
+    apiCache.inProgress = false;
+    
+    // Store in localStorage too
+    try {
+        localStorage.setItem('flowButtonCache', JSON.stringify(apiCache));
+        console.log('[CHAT-BTN] 💾 Cached API result for 2 minutes (memory + localStorage)');
+    } catch (e) {
+        console.log('[CHAT-BTN] 💾 Cached API result for 2 minutes (memory only)');
+    }
+}
+
+async function checkFlowViaAPI() {
+    try {
+        console.log('[CHAT-BTN] 🔄 Flow check requested (will check cache first)');
+        
+        // Prevent duplicate calls
+        if (apiCache.inProgress) {
+            console.log('[CHAT-BTN] ⏸️ API call already in progress, skipping');
+            return;
+        }
+        
+        // Check cache first
+        const cachedResult = getCachedResult();
+        if (cachedResult !== null) {
+            applyButtonState(cachedResult.show_button, 'cached');
+            return;
+        }
+        
+        // Mark as in progress
+        apiCache.inProgress = true;
+        console.log('[CHAT-BTN] 📡 Making fresh API call');
+        
+        // Build dynamic URL using current page's base URL
+        const currentUrl = new URL(window.location.href);
+        const basePath = currentUrl.pathname.split('/')[1]; // Gets the site path (e.g., 'support', 'customer')
+        const apiUrl = basePath ? 
+            `${currentUrl.origin}/${basePath}/services/apexrest/messaging_availability_check` : 
+            `${currentUrl.origin}/services/apexrest/messaging_availability_check`;
+        
+        console.log('[CHAT-BTN] 📡 API URL:', apiUrl);
+        
+        const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        console.log('[CHAT-BTN] 📡 API response:', result);
+        
+        setCachedResult(result);
+        applyButtonState(result.show_button, result.status);
+        
+    } catch (error) {
+        console.error('[CHAT-BTN] ❌ REST API Flow check failed:', error);
+        apiCache.inProgress = false;
+        applyButtonState(false, 'error');
+    }
+}
+
+function applyButtonState(showButton, source) {
+    if (showButton === true) {
+        console.log(`[CHAT-BTN] ✅ ${source}: showing chat button`);
+        embeddedservice_bootstrap.utilAPI.showChatButton();
+    } else {
+        console.log(`[CHAT-BTN] ❌ ${source}: hiding chat button`);
+        embeddedservice_bootstrap.utilAPI.hideChatButton();
+    }
+}
+
+// Restore cache on page load
+restoreCache();
+
+// Track events separately but prevent rapid duplicate calls
+let eventTracker = {
+    onEmbeddedMessagingReady: false,
+    onEmbeddedMessagingButtonCreated: false,
+    lastExecution: 0,
+    minInterval: 2000 // Minimum 2 seconds between executions
+};
+
+function handleMessagingEvent(eventName) {
+    const now = Date.now();
+    
+    // Mark this event as received
+    eventTracker[eventName] = true;
+    
+    // Prevent rapid successive calls (within 2 seconds)
+    if (now - eventTracker.lastExecution < eventTracker.minInterval) {
+        console.log(`[CHAT-BTN] 🔄 ${eventName} - received too soon after last execution, skipping`);
+        return;
+    }
+    
+    console.log(`[CHAT-BTN] 🚀 ${eventName} - executing flow check`);
+    eventTracker.lastExecution = now;
+    setTimeout(checkFlowViaAPI, 1000);
+}
+
+// Event listeners
+window.addEventListener("onEmbeddedMessagingReady", () => handleMessagingEvent("onEmbeddedMessagingReady"));
+window.addEventListener("onEmbeddedMessagingButtonCreated", () => handleMessagingEvent("onEmbeddedMessagingButtonCreated"));
+
+console.log('[CHAT-BTN] 🎯 Enhanced caching REST API controller loaded');
+</script>
